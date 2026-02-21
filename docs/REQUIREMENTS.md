@@ -110,13 +110,15 @@ A channel like WhatsApp appears on both sides — it routes inbound messages to 
 
 ### The Stack
 
-Three layers of Claude:
+Three concerns, cleanly separated:
 
-1. **Claude Code** — develops and maintains the management layer. Setup, customization, debugging, and code changes all happen through Claude Code, not manual configuration.
-2. **The management layer (NanoClaw)** — sits on top of the SDK. Decides which agents run, when they run, and where. Routes messages, spawns containers, defines the MCP action space, persists memory, schedules tasks. This is what turns the SDK into something a user can text.
-3. **Claude Agent SDK** — the agent harness inside the container. Runs the agent loop, manages context, calls tools.
+1. **Communication plane (WhatsApp)** — how user context gets in and agent responses get out. NanoClaw polls this for inbound messages and routes outbound replies through it. The agent doesn't know or care about the transport.
 
-The SDK already handles agent execution — prompt in, result out. NanoClaw doesn't wrap that; it manages it from above. Which group's message triggers an agent, what container it runs in, what MCP tools are available, where memory is stored, when scheduled tasks fire. The MCP servers that define the agent's action space live in this management layer, not in the SDK.
+2. **Orchestration layer (NanoClaw)** — everything that happens *around* the agent. Defines the MCP action space (what the agent can do), initializes the agent with a system prompt, manages memory (per-group CLAUDE.md files), runs cron/scheduled tasks, captures agent logs, and spawns the container the agent runs in. This layer decides which agent runs, when, and with what tools.
+
+3. **Agent (Claude Agent SDK in container)** — receives context and a set of tools, performs actions, returns results. The SDK is the harness that runs the agent loop. The agent itself lives in an isolated container and acts through the MCP tools the orchestration layer provides.
+
+Claude Code sits alongside as the development tool — setup, customization, debugging, and code changes all happen through it, not manual configuration.
 
 ### Message Routing
 - A router listens to WhatsApp and routes messages based on configuration
