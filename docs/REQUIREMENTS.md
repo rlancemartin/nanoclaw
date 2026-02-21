@@ -86,6 +86,28 @@ A personal Claude assistant accessible via WhatsApp, with minimal custom code.
 
 ## Architecture Decisions
 
+### Two MCP Planes
+
+The agent's capabilities are all MCP tools, but they serve two distinct roles:
+
+**Communication plane** — How the user steers the agent. WhatsApp, Telegram, email — these are channels that carry user intent to the agent and deliver responses back. The channel itself is an MCP tool (`send_message`) that the agent calls to reply.
+
+**Action plane** — What the agent does in the world. Read a Twitter timeline, post a tweet, browse a URL, run a shell command. These are the capabilities the agent uses to fulfill requests.
+
+Both planes are MCP. The difference is purpose: communication tools move messages between the user and agent, action tools interact with external systems on the user's behalf.
+
+```
+User ──[channel]──> Router ──> Agent Container
+                                    │
+                                    ├── MCP: send_message (reply to user)
+                                    ├── MCP: schedule_task (set reminders)
+                                    ├── MCP: X (read/post tweets)
+                                    ├── MCP: Browser (fetch pages)
+                                    └── MCP: Filesystem (memory)
+```
+
+A channel like WhatsApp appears on both sides — it routes inbound messages to the agent *and* provides the MCP tool the agent calls to send replies — but these are separate concerns: input routing (Node.js process) vs. output action (MCP tool in container).
+
 ### Message Routing
 - A router listens to WhatsApp and routes messages based on configuration
 - Only messages from registered groups are processed
