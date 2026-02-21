@@ -108,11 +108,15 @@ User ──[channel]──> Router ──> Agent Container
 
 A channel like WhatsApp appears on both sides — it routes inbound messages to the agent *and* provides the MCP tool the agent calls to send replies — but these are separate concerns: input routing (Node.js process) vs. output action (MCP tool in container).
 
-### What This Layer Does
+### The Harness
 
-The Claude Agent SDK is the engine — it runs the agent loop, manages context, calls tools. This project is the harness around it. The harness handles the things the SDK intentionally doesn't: connecting to messaging platforms, routing messages to the right agent, isolating agents in containers, persisting memory across sessions, scheduling tasks.
+Three layers of Claude form the stack:
 
-The SDK operates at the level of "give me a prompt, I'll return a result." The harness pushes that down a layer of abstraction so the interface becomes a WhatsApp message and the result becomes a reply in the chat. The MCP servers that define the agent's action space — what it can do in the world — live in this harness layer, not in the SDK.
+1. **Claude Code** — develops and maintains the harness. Setup, customization, debugging, and code changes all happen through Claude Code, not manual configuration.
+2. **The harness (NanoClaw)** — the product layer. Routes messages, spawns containers, defines the MCP action space, persists memory, schedules tasks. This is what turns the SDK into something a user can text.
+3. **Claude Agent SDK** — the engine inside the container. Runs the agent loop, manages context, calls tools.
+
+The SDK operates at the level of "give me a prompt, I'll return a result." The harness pushes that down a layer of abstraction so the interface becomes a WhatsApp message and the result becomes a reply in the chat. The MCP servers that define the agent's action space — what it can do in the world — live in the harness, not in the SDK.
 
 ### Message Routing
 - A router listens to WhatsApp and routes messages based on configuration
