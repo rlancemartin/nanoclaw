@@ -94,7 +94,7 @@ The agent's capabilities are all MCP tools, but they serve two distinct roles:
 
 **Action plane** — What the agent does in the world. Read a Twitter timeline, post a tweet, browse a URL, run a shell command. These are the capabilities the agent uses to fulfill requests.
 
-Both planes are MCP. The difference is purpose: communication tools move messages between the user and agent, action tools interact with external systems on the user's behalf.
+Both planes are MCP. The difference is purpose: communication tools move messages between the user and agent, action tools interact with external systems on the user's behalf. Both are customizable by forking the repo and modifying or adding MCP servers.
 
 ```
 User ──[channel]──> Router ──> Agent Container
@@ -107,6 +107,12 @@ User ──[channel]──> Router ──> Agent Container
 ```
 
 A channel like WhatsApp appears on both sides — it routes inbound messages to the agent *and* provides the MCP tool the agent calls to send replies — but these are separate concerns: input routing (Node.js process) vs. output action (MCP tool in container).
+
+### What This Layer Does
+
+The Claude Agent SDK is the engine — it runs the agent loop, manages context, calls tools. This project is the harness around it. The harness handles the things the SDK intentionally doesn't: connecting to messaging platforms, routing messages to the right agent, isolating agents in containers, persisting memory across sessions, scheduling tasks.
+
+The SDK operates at the level of "give me a prompt, I'll return a result." The harness pushes that down a layer of abstraction so the interface becomes a WhatsApp message and the result becomes a reply in the chat. The MCP servers that define the agent's action space — what it can do in the world — live in this harness layer, not in the SDK.
 
 ### Message Routing
 - A router listens to WhatsApp and routes messages based on configuration
