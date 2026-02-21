@@ -108,15 +108,15 @@ User ──[channel]──> Router ──> Agent Container
 
 A channel like WhatsApp appears on both sides — it routes inbound messages to the agent *and* provides the MCP tool the agent calls to send replies — but these are separate concerns: input routing (Node.js process) vs. output action (MCP tool in container).
 
-### The Harness
+### The Stack
 
-Three layers of Claude form the stack:
+Three layers of Claude:
 
-1. **Claude Code** — develops and maintains the harness. Setup, customization, debugging, and code changes all happen through Claude Code, not manual configuration.
-2. **The harness (NanoClaw)** — the product layer. Routes messages, spawns containers, defines the MCP action space, persists memory, schedules tasks. This is what turns the SDK into something a user can text.
-3. **Claude Agent SDK** — the engine inside the container. Runs the agent loop, manages context, calls tools.
+1. **Claude Code** — develops and maintains the management layer. Setup, customization, debugging, and code changes all happen through Claude Code, not manual configuration.
+2. **The management layer (NanoClaw)** — sits on top of the SDK. Decides which agents run, when they run, and where. Routes messages, spawns containers, defines the MCP action space, persists memory, schedules tasks. This is what turns the SDK into something a user can text.
+3. **Claude Agent SDK** — the agent harness inside the container. Runs the agent loop, manages context, calls tools.
 
-The SDK operates at the level of "give me a prompt, I'll return a result." The harness pushes that down a layer of abstraction so the interface becomes a WhatsApp message and the result becomes a reply in the chat. The MCP servers that define the agent's action space — what it can do in the world — live in the harness, not in the SDK.
+The SDK already handles agent execution — prompt in, result out. NanoClaw doesn't wrap that; it manages it from above. Which group's message triggers an agent, what container it runs in, what MCP tools are available, where memory is stored, when scheduled tasks fire. The MCP servers that define the agent's action space live in this management layer, not in the SDK.
 
 ### Message Routing
 - A router listens to WhatsApp and routes messages based on configuration
