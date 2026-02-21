@@ -134,37 +134,9 @@ Three concerns sit between these actors:
 
 The user adds new capabilities by telling Claude Code to wire up a new MCP tool. Claude Code modifies the orchestration layer. Next time the agent runs, it sees the new tool. The user never touches the orchestration layer directly.
 
-### Why Self-Hosted (For Now)
+### Always-On Requirement
 
-Today, the orchestration layer and agent runtime are co-located — both run on your hardware. The orchestration process must be always-on to poll for messages, route them, and spawn agents. This is why it lands on a Mac mini, home server, or similar persistent hardware. A laptop works but sleeps.
-
-This is an artifact of the current SDK, not the ideal architecture. If the agent SDK were a hosted, deployed service — one that could be invoked remotely and already handled persistence — the orchestration layer would get much thinner.
-
-### Design Principles for a Deployed Model
-
-The best ideas from NanoClaw carry forward. What changes is where the agent runs.
-
-**What stays:**
-
-1. **Forkable orchestrator** — the orchestration layer is a repo you fork and customize. Your fork *is* your agent's configuration. No dashboards, no admin UIs — just code.
-
-2. **Actions via MCP** — the agent's capabilities are MCP tools. Adding a capability means adding an MCP server. The orchestrator defines the action space; the agent acts within it.
-
-3. **Claude Code as administrator** — the user configures the orchestrator through Claude Code. "Give my agent access to Twitter" → Claude Code wires up the MCP tool. The user never edits the orchestrator directly.
-
-4. **Communication and action as separate planes in the action space** — both are MCP, but they serve different purposes. Communication tools (WhatsApp, Telegram, email) carry user intent in and responses out. Action tools (Twitter, browser, filesystem) do work in the world. The agent sees both as tools; the orchestrator knows which is which.
-
-5. **Memory writes back to orchestration** — learnings, preferences, and context from each session persist back to the orchestration layer (CLAUDE.md files in the repo). The agent's memory lives in the orchestrator, not in the SDK. This means memory survives across deployments and is version-controlled.
-
-**What changes:**
-
-- **Agent is always-on and deployed** — the SDK provider handles persistence, execution, and container isolation. The orchestrator doesn't run the agent; it configures and deploys it. No Mac mini, no always-on process, no polling loop.
-
-- **Orchestration becomes declarative** — instead of a Node.js process managing agent lifecycle, the orchestrator defines: here's the action space (MCP tools), here's the system prompt, here's the memory, here's the cron schedule. Deploy. The deployed SDK handles the rest.
-
-- **Communication plane moves to the SDK** — instead of the orchestrator polling WhatsApp and feeding messages to the agent, the deployed SDK receives webhooks directly. The orchestrator just declares which channels to listen on.
-
-The self-hosted model is where NanoClaw is today — full control, works now. The deployed model is where this design naturally wants to go: same forkable orchestrator, same MCP action space, same Claude Code administration, but the agent runs somewhere else.
+The orchestration layer must be persistent — it polls for messages, routes them, and spawns agents. This is why it runs on dedicated hardware (Mac mini, home server, etc.). A laptop works but sleeps. This is an artifact of the agent runtime being self-hosted, not a fundamental requirement of the design. See [Addendum: Deployed Agent Model](#addendum-deployed-agent-model) for how this constraint goes away.
 
 ### Message Routing
 - A router listens to WhatsApp and routes messages based on configuration
@@ -273,3 +245,35 @@ These are the creator's settings, stored here for reference:
 ## Project Name
 
 **NanoClaw** - A reference to Clawdbot (now OpenClaw).
+
+---
+
+## Addendum: Deployed Agent Model
+
+Today, the orchestration layer and agent runtime are co-located on your hardware. NanoClaw is a persistent Node.js process that polls for messages, manages containers, and runs the agent. This works, but it means you need always-on hardware.
+
+If the agent SDK were a hosted, deployed service — always-on by default, with persistence and container isolation built in — the architecture could shift. The core design principles carry forward; what changes is where the agent runs and what the orchestrator is responsible for.
+
+### What Stays
+
+1. **Forkable orchestrator** — the orchestration layer is a repo you fork and customize. Your fork *is* your agent's configuration. No dashboards, no admin UIs — just code.
+
+2. **Actions via MCP** — the agent's capabilities are MCP tools. Adding a capability means adding an MCP server. The orchestrator defines the action space; the agent acts within it.
+
+3. **Claude Code as administrator** — the user configures the orchestrator through Claude Code. "Give my agent access to Twitter" → Claude Code wires up the MCP tool. The user never edits the orchestrator directly.
+
+4. **Communication and action as separate planes in the action space** — both are MCP, but they serve different purposes. Communication tools (WhatsApp, Telegram, email) carry user intent in and responses out. Action tools (Twitter, browser, filesystem) do work in the world. The agent sees both as tools; the orchestrator knows which is which.
+
+5. **Memory writes back to orchestration** — learnings, preferences, and context from each session persist back to the orchestration layer (CLAUDE.md files in the repo). The agent's memory lives in the orchestrator, not in the SDK. This means memory survives across deployments and is version-controlled.
+
+### What Changes
+
+- **Agent is always-on and deployed** — the SDK provider handles persistence, execution, and container isolation. The orchestrator doesn't run the agent; it configures and deploys it. No Mac mini, no always-on process, no polling loop.
+
+- **Orchestration becomes declarative** — instead of a Node.js process managing agent lifecycle, the orchestrator defines: here's the action space (MCP tools), here's the system prompt, here's the memory, here's the cron schedule. Deploy. The deployed SDK handles the rest.
+
+- **Communication plane moves to the SDK** — instead of the orchestrator polling WhatsApp and feeding messages to the agent, the deployed SDK receives webhooks directly. The orchestrator just declares which channels to listen on.
+
+### Summary
+
+Same forkable orchestrator, same MCP action space, same Claude Code administration, same memory model — but the agent runs somewhere else. NanoClaw shifts from "always-on process that runs agents" to "declarative configuration that defines and deploys them."
