@@ -138,14 +138,33 @@ The user adds new capabilities by telling Claude Code to wire up a new MCP tool.
 
 Today, the orchestration layer and agent runtime are co-located — both run on your hardware. The orchestration process must be always-on to poll for messages, route them, and spawn agents. This is why it lands on a Mac mini, home server, or similar persistent hardware. A laptop works but sleeps.
 
-This is an artifact of the current SDK, not the ideal architecture. If the agent SDK were a hosted, deployed service — one that could be invoked remotely and already handled persistence — the orchestration layer would get much thinner:
+This is an artifact of the current SDK, not the ideal architecture. If the agent SDK were a hosted, deployed service — one that could be invoked remotely and already handled persistence — the orchestration layer would get much thinner.
 
-- **Today (self-hosted SDK)**: Orchestration must be a persistent process. It polls for messages, keeps containers alive, manages the agent lifecycle. You need hardware that's always on.
-- **Future (deployed SDK)**: Orchestration becomes declarative. It defines the action space (MCP tools), the system prompt, memory, and cron schedule — then deploys that configuration. The SDK provider handles persistence, routing, and execution. No Mac mini required.
+### Design Principles for a Deployed Model
 
-In the deployed model, NanoClaw shifts from "always-on process that runs agents" to "configuration layer that defines what agents can do and deploys them." The communication plane would also move — instead of NanoClaw polling WhatsApp, the deployed SDK would receive webhooks directly.
+The best ideas from NanoClaw carry forward. What changes is where the agent runs.
 
-The self-hosted model gives you full control and works today. The deployed model is where this naturally wants to go.
+**What stays:**
+
+1. **Forkable orchestrator** — the orchestration layer is a repo you fork and customize. Your fork *is* your agent's configuration. No dashboards, no admin UIs — just code.
+
+2. **Actions via MCP** — the agent's capabilities are MCP tools. Adding a capability means adding an MCP server. The orchestrator defines the action space; the agent acts within it.
+
+3. **Claude Code as administrator** — the user configures the orchestrator through Claude Code. "Give my agent access to Twitter" → Claude Code wires up the MCP tool. The user never edits the orchestrator directly.
+
+4. **Communication and action as separate planes in the action space** — both are MCP, but they serve different purposes. Communication tools (WhatsApp, Telegram, email) carry user intent in and responses out. Action tools (Twitter, browser, filesystem) do work in the world. The agent sees both as tools; the orchestrator knows which is which.
+
+5. **Memory writes back to orchestration** — learnings, preferences, and context from each session persist back to the orchestration layer (CLAUDE.md files in the repo). The agent's memory lives in the orchestrator, not in the SDK. This means memory survives across deployments and is version-controlled.
+
+**What changes:**
+
+- **Agent is always-on and deployed** — the SDK provider handles persistence, execution, and container isolation. The orchestrator doesn't run the agent; it configures and deploys it. No Mac mini, no always-on process, no polling loop.
+
+- **Orchestration becomes declarative** — instead of a Node.js process managing agent lifecycle, the orchestrator defines: here's the action space (MCP tools), here's the system prompt, here's the memory, here's the cron schedule. Deploy. The deployed SDK handles the rest.
+
+- **Communication plane moves to the SDK** — instead of the orchestrator polling WhatsApp and feeding messages to the agent, the deployed SDK receives webhooks directly. The orchestrator just declares which channels to listen on.
+
+The self-hosted model is where NanoClaw is today — full control, works now. The deployed model is where this design naturally wants to go: same forkable orchestrator, same MCP action space, same Claude Code administration, but the agent runs somewhere else.
 
 ### Message Routing
 - A router listens to WhatsApp and routes messages based on configuration
