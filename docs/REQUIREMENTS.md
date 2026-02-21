@@ -122,7 +122,7 @@ Three concerns sit between these actors:
 
 1. **Communication plane (WhatsApp)** — carries user intent to the agent and delivers responses back. NanoClaw polls this for inbound messages and routes outbound replies through it. The agent doesn't know or care about the transport.
 
-2. **Orchestration layer (NanoClaw)** — everything that happens *around* the agent. This is the persistent process that must be always-on to route messages, which is why it runs on dedicated hardware (Mac mini, home server, etc. — a laptop works but goes to sleep). It:
+2. **Orchestration layer (NanoClaw)** — everything that happens *around* the agent. It:
    - Defines the MCP action space (what the agent can do)
    - Initializes the agent with a system prompt
    - Manages memory (per-group CLAUDE.md files)
@@ -133,6 +133,19 @@ Three concerns sit between these actors:
 3. **Agent (Claude Agent SDK in container)** — receives context and a set of tools, performs actions, returns results. The SDK is the harness that runs the agent loop. The agent lives in an isolated container and acts through the MCP tools the orchestration layer provides. Containerization is what makes it safe to give the agent real capabilities — it can run bash, browse the web, call APIs, but only within its sandbox.
 
 The user adds new capabilities by telling Claude Code to wire up a new MCP tool. Claude Code modifies the orchestration layer. Next time the agent runs, it sees the new tool. The user never touches the orchestration layer directly.
+
+### Why Self-Hosted (For Now)
+
+Today, the orchestration layer and agent runtime are co-located — both run on your hardware. The orchestration process must be always-on to poll for messages, route them, and spawn agents. This is why it lands on a Mac mini, home server, or similar persistent hardware. A laptop works but sleeps.
+
+This is an artifact of the current SDK, not the ideal architecture. If the agent SDK were a hosted, deployed service — one that could be invoked remotely and already handled persistence — the orchestration layer would get much thinner:
+
+- **Today (self-hosted SDK)**: Orchestration must be a persistent process. It polls for messages, keeps containers alive, manages the agent lifecycle. You need hardware that's always on.
+- **Future (deployed SDK)**: Orchestration becomes declarative. It defines the action space (MCP tools), the system prompt, memory, and cron schedule — then deploys that configuration. The SDK provider handles persistence, routing, and execution. No Mac mini required.
+
+In the deployed model, NanoClaw shifts from "always-on process that runs agents" to "configuration layer that defines what agents can do and deploys them." The communication plane would also move — instead of NanoClaw polling WhatsApp, the deployed SDK would receive webhooks directly.
+
+The self-hosted model gives you full control and works today. The deployed model is where this naturally wants to go.
 
 ### Message Routing
 - A router listens to WhatsApp and routes messages based on configuration
