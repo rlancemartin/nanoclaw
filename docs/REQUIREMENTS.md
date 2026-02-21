@@ -108,17 +108,31 @@ User ──[channel]──> Router ──> Agent Container
 
 A channel like WhatsApp appears on both sides — it routes inbound messages to the agent *and* provides the MCP tool the agent calls to send replies — but these are separate concerns: input routing (Node.js process) vs. output action (MCP tool in container).
 
+### The Actors
+
+There are three actors:
+
+- **User** — wants things done. Steers the agent via a communication channel (WhatsApp). Adds capabilities to the agent via Claude Code.
+- **Agent** — does things. Receives context and tools, performs actions, returns results. Runs inside a container so it can act safely.
+- **Claude Code** — the user's development tool. Modifies the orchestration layer — adding MCP tools, changing behavior, debugging. The user doesn't edit config files; they tell Claude Code what they want and it changes the code.
+
 ### The Stack
 
-Three concerns, cleanly separated:
+Three concerns sit between these actors:
 
-1. **Communication plane (WhatsApp)** — how user context gets in and agent responses get out. NanoClaw polls this for inbound messages and routes outbound replies through it. The agent doesn't know or care about the transport.
+1. **Communication plane (WhatsApp)** — carries user intent to the agent and delivers responses back. NanoClaw polls this for inbound messages and routes outbound replies through it. The agent doesn't know or care about the transport.
 
-2. **Orchestration layer (NanoClaw)** — everything that happens *around* the agent. Defines the MCP action space (what the agent can do), initializes the agent with a system prompt, manages memory (per-group CLAUDE.md files), runs cron/scheduled tasks, captures agent logs, and spawns the container the agent runs in. This layer decides which agent runs, when, and with what tools.
+2. **Orchestration layer (NanoClaw)** — everything that happens *around* the agent. This is the persistent process that must be always-on to route messages, which is why it runs on dedicated hardware (Mac mini, home server, etc. — a laptop works but goes to sleep). It:
+   - Defines the MCP action space (what the agent can do)
+   - Initializes the agent with a system prompt
+   - Manages memory (per-group CLAUDE.md files)
+   - Runs cron / scheduled tasks
+   - Captures agent logs
+   - Spawns the container the agent runs in
 
-3. **Agent (Claude Agent SDK in container)** — receives context and a set of tools, performs actions, returns results. The SDK is the harness that runs the agent loop. The agent itself lives in an isolated container and acts through the MCP tools the orchestration layer provides.
+3. **Agent (Claude Agent SDK in container)** — receives context and a set of tools, performs actions, returns results. The SDK is the harness that runs the agent loop. The agent lives in an isolated container and acts through the MCP tools the orchestration layer provides. Containerization is what makes it safe to give the agent real capabilities — it can run bash, browse the web, call APIs, but only within its sandbox.
 
-Claude Code sits alongside as the development tool — setup, customization, debugging, and code changes all happen through it, not manual configuration.
+The user adds new capabilities by telling Claude Code to wire up a new MCP tool. Claude Code modifies the orchestration layer. Next time the agent runs, it sees the new tool. The user never touches the orchestration layer directly.
 
 ### Message Routing
 - A router listens to WhatsApp and routes messages based on configuration
